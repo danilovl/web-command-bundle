@@ -1,3 +1,8 @@
+[![phpunit](https://github.com/danilovl/web-command-bundle/actions/workflows/phpunit.yml/badge.svg)](https://github.com/danilovl/web-command-bundle/actions/workflows/phpunit.yml)
+[![downloads](https://img.shields.io/packagist/dt/danilovl/web-command-bundle)](https://packagist.org/packages/danilovl/web-command-bundle)
+[![latest Stable Version](https://img.shields.io/packagist/v/danilovl/web-command-bundle)](https://packagist.org/packages/danilovl/web-command-bundle)
+[![license](https://img.shields.io/packagist/l/danilovl/web-command-bundle)](https://packagist.org/packages/danilovl/web-command-bundle)
+
 # WebCommandBundle
 
 A Symfony bundle for running console commands via web interface (REST API). Supports both synchronous and asynchronous (via Messenger) execution.
