@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Command Console</title>
+    <link rel="stylesheet" href="{{ asset('bundles/webcommand/css/dashboard.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet">
+</head>
+<body>
+
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="4 17 10 11 4 5"></polyline>
+                    <line x1="12" y1="19" x2="20" y2="19"></line>
+                </svg>
+                <span>Command Console</span>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <div class="sidebar-label">Available Commands</div>
+            <nav class="command-nav">
+                <ul id="command-list">
+                    {% for command in commands %}
+                        <li>
+                            <button onclick="selectCommand(this)"
+                                    class="command-item"
+                                    data-id="{{ command.id }}"
+                                    data-name="{{ command.name|e('html_attr') }}"
+                                    data-command="{{ command.command|e('html_attr') }}"
+                                    data-description="{{ command.description|e('html_attr') }}"
+                                    data-async="{{ command.async ? 'true' : 'false' }}"
+                                    data-parameters="{{ command.parameters|json_encode|e('html_attr') }}"
+                                    data-allow-custom-parameters="{{ command.allowCustomParameters ? 'true' : 'false' }}">
+                                <div class="command-item-main">
+                                    <span class="command-item-name">{{ command.name }}</span>
+                                    <span class="command-item-sub"><code>{{ command.command }}</code></span>
+                                </div>
+                                <span class="badge {{ command.async ? 'badge-async' : 'badge-sync' }}">
+                                    {{ command.async ? 'AS' : 'S' }}
+                                </span>
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="main-header">
+            <div class="breadcrumb">
+                <span class="breadcrumb-item">Dashboard</span>
+                <span class="breadcrumb-separator">/</span>
+                <span id="breadcrumb-command" class="breadcrumb-item active">Select Command</span>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <!-- Command Details Card -->
+            <div id="welcome-screen" class="welcome-screen">
+                <div class="welcome-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                </div>
+                <h2>Ready to execute</h2>
+                <p>Select a command from the sidebar to begin. You can run commands synchronously or asynchronously and
+                    view output in real-time.</p>
+            </div>
+
+            <div id="command-workspace" style="display: none;">
+                <div class="card command-card">
+                    <div class="card-header">
+                        <div class="command-title-group">
+                            <h2 id="current-command-name">Command Name</h2>
+                            <div class="command-meta">
+                                <span id="current-command-badge" class="badge"></span>
+                                <code id="current-command-string">bin/console ...</code>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button id="run-btn" class="btn btn-primary" onclick="runCommand()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                                Run Command
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="current-command-description" class="command-description">
+                            No description provided for this command.
+                        </div>
+
+                        <div class="input-group">
+                            <label>Execution Parameters</label>
+                            <div id="params-list" class="params-container">
+                                <!-- Dynamic parameters inputs -->
+                            </div>
+                            <div class="params-actions">
+                                <button id="add-param-btn" class="btn btn-ghost btn-sm" onclick="addParamInput()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Add Parameter
+                                </button>
+                            </div>
+                            <small id="custom-params-hint" class="input-hint">Default parameters are pre-filled. You can
+                                modify them if allowed.</small>
+                        </div>
+
+                        <div class="input-group" style="margin-top: 1.5rem;">
+                            <label for="execution-timeout">Execution Timeout (seconds)</label>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <input type="number" id="execution-timeout" class="param-input" placeholder="Default"
+                                       min="1" style="max-width: 150px;">
+                                <small class="input-hint">Leave empty to use system default.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terminal -->
+                <div class="card terminal-card">
+                    <div class="terminal-header">
+                        <div class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="terminal-title">Output Console</div>
+                        <div class="terminal-actions">
+                            <button onclick="clearTerminal()" title="Clear console">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 6h18"></path>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="output" class="terminal-body">
+                        <div class="terminal-line"><span class="prompt">$</span> Waiting for command execution...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Jobs -->
+            <div class="card jobs-card">
+                <div class="card-header">
+                    <h3>Recent execution history</h3>
+                    <button class="btn btn-ghost btn-sm" onclick="loadHistories(1)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="jobs-table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Command</th>
+                            <th>Async</th>
+                            <th>Exit Code</th>
+                            <th>Duration</th>
+                            <th>Created At</th>
+                        </tr>
+                        </thead>
+                        <tbody id="histories-list">
+                        <tr>
+                            <td colspan="6" class="text-center">Loading execution history...</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="pagination" class="pagination"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    let selectedCommandId = null;
+    let selectedCommandName = null;
+    let currentPage = 1;
+    let pollingInterval = null;
+    const runUrlTemplate = '{{ path('danilovl_web_command_run', {'id': 'ID_PLACEHOLDER'})|raw }}';
+    const historyListUrlTemplate = '{{ path('danilovl_web_command_histories', {'command': 'ID_PLACEHOLDER'})|raw }}';
+    const historyDetailUrlTemplate = '{{ path('danilovl_web_command_history_detail', {'id': 'ID_PLACEHOLDER'})|raw }}';
+    const jobStatusUrlTemplate = '{{ path('danilovl_web_command_job_status', {'id': 'ID_PLACEHOLDER'})|raw }}';
+
+    let currentCommandAllowCustom = true;
+
+    async function handleResponse(response) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+        }
+
+        const text = await response.text();
+
+        throw new Error(`Invalid response format (Status: ${response.status}). ${text.substring(0, 200)}`);
+    }
+
+    function selectCommand(btn) {
+        const id = parseInt(btn.dataset.id);
+        const name = btn.dataset.name;
+        const command = btn.dataset.command;
+        const description = btn.dataset.description;
+        const isAsync = btn.dataset.async === 'true';
+        const defaultParams = JSON.parse(btn.dataset.parameters || '[]');
+        currentCommandAllowCustom = btn.dataset.allowCustomParameters === 'true';
+        selectedCommandId = id;
+        selectedCommandName = name;
+
+        // UI Updates
+        document.querySelectorAll('.command-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('command-workspace').style.display = 'block';
+
+        document.getElementById('breadcrumb-command').innerText = name;
+        document.getElementById('current-command-name').innerText = name;
+        document.getElementById('current-command-string').innerText = command;
+        document.getElementById('current-command-description').innerText = description || 'No description provided for this command.';
+
+        const badge = document.getElementById('current-command-badge');
+        badge.innerText = isAsync ? 'Asynchronous' : 'Synchronous';
+        badge.className = 'badge ' + (isAsync ? 'badge-async' : 'badge-sync');
+
+        // Render parameters
+        const paramsList = document.getElementById('params-list');
+        paramsList.innerHTML = '';
+        defaultParams.forEach(param => addParamInput(param));
+
+        const addBtn = document.getElementById('add-param-btn');
+        addBtn.disabled = !currentCommandAllowCustom;
+        addBtn.style.display = currentCommandAllowCustom ? 'inline-flex' : 'none';
+
+        const hint = document.getElementById('custom-params-hint');
+        hint.innerText = currentCommandAllowCustom
+            ? 'Default parameters are pre-filled. You can modify them.'
+            : 'Custom parameters are disabled for this command.';
+        hint.className = currentCommandAllowCustom ? 'input-hint' : 'input-hint warning';
+
+        const timeoutInput = document.getElementById('execution-timeout');
+        timeoutInput.disabled = !currentCommandAllowCustom;
+        timeoutInput.value = '';
+
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+
+        clearTerminal();
+        addTerminalLine(`Command ready: ${name}`, 'info');
+
+        loadHistories(1);
+    }
+
+    function addParamInput(value = '') {
+        const container = document.getElementById('params-list');
+        const div = document.createElement('div');
+        div.className = 'param-item';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'param-input';
+        input.value = value;
+        input.placeholder = '--option or argument';
+        input.disabled = !currentCommandAllowCustom;
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentCommandAllowCustom) addParamInput();
+            }
+        };
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove';
+        removeBtn.disabled = !currentCommandAllowCustom;
+        removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<line x1="18" y1="6" x2="6" y2="18"></line>' +
+            '<line x1="6" y1="6" x2="18" y2="18"></line>' +
+            '</svg>';
+        removeBtn.onclick = () => div.remove();
+
+        div.appendChild(input);
+        div.appendChild(removeBtn);
+        container.appendChild(div);
+
+        if (value === '' && currentCommandAllowCustom) {
+            input.focus();
+        }
+    }
+
+    function clearTerminal() {
+        const outputArea = document.getElementById('output');
+        outputArea.innerHTML = '';
+    }
+
+    function addTerminalLine(text, type = 'default') {
+        const outputArea = document.getElementById('output');
+        const line = document.createElement('div');
+        line.className = 'terminal-line ' + type;
+
+        if (type === 'error') {
+            line.innerHTML = `<span class="prompt">$</span> <span class="text-danger">${text}</span>`;
+        } else if (type === 'success') {
+            line.innerHTML = `<span class="prompt">$</span> <span class="text-success">${text}</span>`;
+        } else if (type === 'info') {
+            line.innerHTML = `<span class="prompt">$</span> <span class="text-info">${text}</span>`;
+        } else {
+            line.innerHTML = `<span class="prompt">$</span> ${text}`;
+        }
+
+        outputArea.appendChild(line);
+        outputArea.scrollTop = outputArea.scrollHeight;
+    }
+
+    function resetRunButton() {
+        const runBtn = document.getElementById('run-btn');
+        runBtn.disabled = false;
+        runBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<polygon points="5 3 19 12 5 21 5 3"></polygon>' +
+            '</svg> Run Command';
+    }
+
+    function pollJobStatus(jobId) {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+
+        pollingInterval = setInterval(async () => {
+            try {
+                const url = jobStatusUrlTemplate.replace('ID_PLACEHOLDER', jobId);
+                const response = await fetch(url);
+                const data = await handleResponse(response);
+
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+
+                    addTerminalLine(`Job ${jobId} finished with status: ${data.status}`, data.status === 'completed' ? 'success' : 'error');
+                    loadHistories(1);
+                    resetRunButton();
+                }
+            } catch (e) {
+                console.error('Polling error:', e);
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+                resetRunButton();
+            }
+        }, 2000);
+    }
+
+    async function runCommand() {
+        if (!selectedCommandId) {
+            return;
+        }
+
+        const runBtn = document.getElementById('run-btn');
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<line x1="12" y1="2" x2="12" y2="6"></line>' +
+            '<line x1="12" y1="18" x2="12" y2="22"></line>' +
+            '<line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>' +
+            '<line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>' +
+            '<line x1="2" y1="12" x2="6" y2="12"></line>' +
+            '<line x1="18" y1="12" x2="22" y2="12"></line>' +
+            '<line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>' +
+            '<line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>' +
+            '</svg> Executing...';
+
+        addTerminalLine(`Starting execution of ${selectedCommandName}...`, 'info');
+
+        const additionalInput = Array.from(document.querySelectorAll('.param-input:not(#execution-timeout)'))
+            .map(input => input.value.trim())
+            .filter(val => val !== '');
+
+        const timeout = document.getElementById('execution-timeout').value;
+
+        try {
+            const url = runUrlTemplate.replace('ID_PLACEHOLDER', selectedCommandId);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    input: additionalInput,
+                    timeout: timeout ? parseInt(timeout) : null
+                })
+            });
+
+            const result = await handleResponse(response);
+
+            if (response.status === 202) {
+                addTerminalLine(`Job queued. ID: ${result.jobId}`, 'info');
+                pollJobStatus(result.jobId);
+            } else if (response.status === 200) {
+                formatOutput(result.output, result.exitCode);
+                resetRunButton();
+            } else {
+                addTerminalLine('Error: ' + (result.error || 'Unknown error'), 'error');
+                resetRunButton();
+            }
+        } catch (error) {
+            addTerminalLine('Fetch error: ' + error.message, 'error');
+            resetRunButton();
+        }
+
+        loadHistories(1);
+    }
+
+    function formatOutput(text, exitCode) {
+        if (!text) {
+            addTerminalLine('Command executed successfully with no output.', 'success');
+
+            return;
+        }
+
+        const lines = text.split('\n');
+        lines.forEach(line => {
+            if (line.trim()) {
+                const element = document.createElement('div');
+                element.className = 'terminal-line';
+                element.textContent = line;
+                document.getElementById('output').appendChild(element);
+            }
+        });
+
+        addTerminalLine(`Process finished with exit code ${exitCode}`, exitCode === 0 ? 'success' : 'error');
+        document.getElementById('output').scrollTop = document.getElementById('output').scrollHeight;
+    }
+
+    async function loadHistories(page = 1) {
+        if (!selectedCommandId) {
+            const tbody = document.getElementById('histories-list');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Select a command to view history</td></tr>';
+            }
+
+            return;
+        }
+
+        currentPage = page;
+        try {
+            let url = historyListUrlTemplate.replace('ID_PLACEHOLDER', selectedCommandId);
+            url += `?page=${page}`;
+
+            const response = await fetch(url);
+            const data = await handleResponse(response);
+
+            const tbody = document.getElementById('histories-list');
+            tbody.innerHTML = '';
+
+            if (data.histories.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No execution history found</td></tr>';
+
+                return;
+            }
+
+            data.histories.forEach(history => {
+                const tr = document.createElement('tr');
+                const asyncBadge = `<span class="badge ${history.async ? 'badge-async' : 'badge-sync'}">${history.async ? 'Async' : 'Sync'}</span>`;
+                const durationValue = history.duration;
+                const duration = durationValue.toFixed(2) + 's';
+                const date = history.createdAt;
+
+                tr.innerHTML = `
+                    <td class="font-mono"><code>${history.id}</code></td>
+                    <td><strong>${history.command.name}</strong></td>
+                    <td>${asyncBadge}</td>
+                    <td><span class="badge ${history.exitCode === 0 ? 'badge-success' : 'badge-danger'}">${history.exitCode}</span></td>
+                    <td>${duration}</td>
+                    <td class="text-muted small">${date}</td>
+                `;
+                tr.onclick = () => showHistoryOutput(history.id);
+                tbody.appendChild(tr);
+            });
+
+            renderPagination(data.totalPages);
+        } catch (e) {
+            console.error('Failed to load histories', e);
+            const tbody = document.getElementById('histories-list');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading history: ${e.message}</td></tr>`;
+            }
+        }
+    }
+
+    function renderPagination(totalPages) {
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        if (totalPages <= 1) {
+            return;
+        }
+
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.innerText = i;
+            btn.className = i === currentPage ? 'active' : '';
+            btn.onclick = () => loadHistories(i);
+            pagination.appendChild(btn);
+        }
+    }
+
+    async function showHistoryOutput(historyId) {
+        try {
+            const url = historyDetailUrlTemplate.replace('ID_PLACEHOLDER', historyId);
+            const response = await fetch(url);
+            const history = await handleResponse(response);
+
+            const outputArea = document.getElementById('output');
+            outputArea.innerHTML = '';
+            addTerminalLine(`Historical output for Run ${historyId}`, 'info');
+
+            if (history.output) {
+                history.output.split('\n').forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'terminal-line';
+                    div.textContent = line;
+                    outputArea.appendChild(div);
+                });
+            } else if (history.errorMessage) {
+                addTerminalLine(`Error: ${history.errorMessage}`, 'error');
+            } else {
+                addTerminalLine('No output saved for this run.', 'info');
+            }
+
+            addTerminalLine(`Execution finished. Exit code: ${history.exitCode}`, history.exitCode === 0 ? 'success' : 'error');
+            outputArea.scrollTop = outputArea.scrollHeight;
+
+        } catch (e) {
+            console.error('Failed to get history output', e);
+            addTerminalLine(`Error loading history details: ${e.message}`, 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const historiesList = document.getElementById('histories-list');
+        if (historiesList) {
+            loadHistories(1);
+        }
+    });
+</script>
+</body>
+</html>

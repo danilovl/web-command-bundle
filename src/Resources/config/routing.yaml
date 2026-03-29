@@ -1,0 +1,18 @@
+web_command_api_commands:
+    resource: '../../Controller/Api/CommandController.php'
+    type: attribute
+    prefix: '%web_command.api_prefix%/commands'
+
+web_command_api_histories:
+    resource: '../../Controller/Api/HistoryController.php'
+    type: attribute
+    prefix: '%web_command.api_prefix%'
+
+web_command_api_jobs:
+    resource: '../../Controller/Api/JobController.php'
+    type: attribute
+    prefix: '%web_command.api_prefix%'
+
+web_command_dashboard:
+    resource: '../../Controller/DashboardController.php'
+    type: attribute

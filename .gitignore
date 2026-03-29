@@ -1,0 +1,9 @@
+.idea/
+.phpunit
+.phpunit.result.cache
+.phpunit.cache
+/phpunit.xml
+composer.lock
+/var/
+/vendor/
+/.env
