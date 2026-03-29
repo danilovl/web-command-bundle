@@ -89,6 +89,69 @@ class CommandControllerTest extends TestCase
         $this->assertStringContainsString('Custom parameters are not allowed', (string) $response->getContent());
     }
 
+    public function testRunAllowCustomParametersFalseFails(): void
+    {
+        $command = new Command;
+        $command->setId(1);
+        $command->setName('test');
+        $command->setCommand('actual:command');
+        $command->setParameters(['--default']);
+        $command->setAllowCustomParameters(false);
+        $command->setAsync(false);
+
+        $this->commandService
+            ->method('isGranted')
+            ->willReturn(true);
+
+        $controller = new CommandController(
+            entityManager: $this->entityManager,
+            messageBus: $this->messageBus,
+            commandRunner: $this->commandRunner,
+            commandService: $this->commandService,
+            enableAsync: true,
+            defaultTimeout: 300
+        );
+
+        $runCommandDto = new RunCommandDto(['--default']);
+        $response = $controller->run($command, $runCommandDto);
+
+        $this->assertEquals(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+    }
+
+    public function testRunAllowCustomParametersFalseSuccess(): void
+    {
+        $command = new Command;
+        $command->setId(1);
+        $command->setName('test');
+        $command->setCommand('actual:command');
+        $command->setParameters(['--default']);
+        $command->setAllowCustomParameters(false);
+        $command->setAsync(false);
+
+        $this->commandService
+            ->method('isGranted')
+            ->willReturn(true);
+
+        $this->commandRunner
+            ->method('run')
+            ->with($command, ['--default'], 300)
+            ->willReturn(['output' => 'ok', 'exitCode' => 0, 'duration' => '1.0000']);
+
+        $controller = new CommandController(
+            entityManager: $this->entityManager,
+            messageBus: $this->messageBus,
+            commandRunner: $this->commandRunner,
+            commandService: $this->commandService,
+            enableAsync: true,
+            defaultTimeout: 300
+        );
+
+        $runCommandDto = new RunCommandDto([]);
+        $response = $controller->run($command, $runCommandDto);
+
+        $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
+    }
+
     public function testRunSuccessSynchronous(): void
     {
         $command = new Command;

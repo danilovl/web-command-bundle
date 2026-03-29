@@ -394,21 +394,23 @@
 
         addTerminalLine(`Starting execution of ${selectedCommandName}...`, 'info');
 
-        const additionalInput = Array.from(document.querySelectorAll('.param-input:not(#execution-timeout)'))
-            .map(input => input.value.trim())
-            .filter(val => val !== '');
-
         const timeout = document.getElementById('execution-timeout').value;
+        const bodyData = {
+            timeout: timeout ? parseInt(timeout) : null
+        };
+
+        if (currentCommandAllowCustom) {
+            bodyData.input = Array.from(document.querySelectorAll('.param-input:not(#execution-timeout)'))
+                .map(input => input.value.trim())
+                .filter(val => val !== '');
+        }
 
         try {
             const url = runUrlTemplate.replace('ID_PLACEHOLDER', selectedCommandId);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    input: additionalInput,
-                    timeout: timeout ? parseInt(timeout) : null
-                })
+                body: JSON.stringify(bodyData)
             });
 
             const result = await handleResponse(response);
