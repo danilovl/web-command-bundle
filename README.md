@@ -78,7 +78,8 @@ danilovl_web_command:
     default_timeout: null
     default_time_limit: null
     default_memory_limit: null
-    enabled_dashboard_controller: false
+    enabled_admin_dashboard: false
+    enabled_dashboard_live_status: true
 ```
 
 *Note:*
@@ -87,6 +88,8 @@ danilovl_web_command:
 - `default_timeout`: default timeout (seconds) for synchronous command execution via API.
 - `default_time_limit`: default timeout (seconds) for asynchronous command execution.
 - `default_memory_limit`: applied via `-d memory_limit=...` during process execution.
+- `enabled_admin_dashboard`: enable EasyAdmin dashboard integration.
+- `enabled_dashboard_live_status`: enable/disable interval requests to check job status on the web dashboard.
 
 ### Messenger Configuration
 
@@ -114,7 +117,7 @@ To use it, ensure you have `EasyAdminBundle` installed and configured, and enabl
 
 ```yaml
 danilovl_web_command:
-    enabled_dashboard_controller: true
+    enabled_admin_dashboard: true
 ```
 
 The dashboard is available at `/admin/danilovl/web-command`.

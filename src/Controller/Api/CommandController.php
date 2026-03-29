@@ -10,10 +10,10 @@ use Danilovl\WebCommandBundle\Entity\{
 use Danilovl\WebCommandBundle\Message\RunCommandMessage;
 use Danilovl\WebCommandBundle\Service\{
     CommandRunner,
-    CommandService
+    CommandService,
+    ConfigurationProvider
 };
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpFoundation\{
     Response,
@@ -31,10 +31,7 @@ final readonly class CommandController
         private MessageBusInterface $messageBus,
         private CommandRunner $commandRunner,
         private CommandService $commandService,
-        #[Autowire('%web_command.enable_async%')]
-        private bool $enableAsync,
-        #[Autowire('%web_command.default_timeout%')]
-        private ?int $defaultTimeout = null
+        private ConfigurationProvider $configurationProvider
     ) {}
 
     #[Route(
@@ -88,18 +85,18 @@ final readonly class CommandController
 
         $input = $input !== [] ? $input : $command->getParameters();
 
-        $timeout = $runCommandDto->timeout ?? $this->defaultTimeout ?? 300;
+        $timeout = $runCommandDto->timeout ?? $this->configurationProvider->defaultTimeout ?? 300;
 
         $isAsyncCommand = $command->isAsync();
 
-        if ($isAsyncCommand && !$this->enableAsync) {
+        if ($isAsyncCommand && !$this->configurationProvider->enableAsync) {
             return new JsonResponse(
                 data: ['error' => 'Async execution is disabled in the configuration'],
                 status: Response::HTTP_BAD_REQUEST
             );
         }
 
-        if ($isAsyncCommand && $this->enableAsync) {
+        if ($isAsyncCommand && $this->configurationProvider->enableAsync) {
             $job = new Job($command, $input);
             $this->entityManager->persist($job);
             $this->entityManager->flush();

@@ -34,8 +34,11 @@ class Configuration implements ConfigurationInterface
                 ->scalarNode('default_memory_limit')
                     ->defaultNull()
                 ->end()
-                ->booleanNode('enabled_dashboard_controller')
+                ->booleanNode('enabled_admin_dashboard')
                     ->defaultFalse()
+                ->end()
+                ->booleanNode('enabled_dashboard_live_status')
+                    ->defaultTrue()
                 ->end()
             ->end();
 

@@ -31,6 +31,7 @@ class JobTest extends TestCase
     public function testJsonSerialize(): void
     {
         $command = new Command;
+        $command->setId(1);
         $command->setName('test:command');
         
         $job = new Job($command, ['--arg']);

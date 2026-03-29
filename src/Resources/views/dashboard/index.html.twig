@@ -62,7 +62,7 @@
                 <span class="breadcrumb-separator">/</span>
                 <span id="breadcrumb-command" class="breadcrumb-item active">Select Command</span>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" {% if not enabledDashboardLiveStatus %}style="display: none;"{% endif %}>
                 <div class="notification-container">
                     <button class="notification-btn" onclick="toggleNotifications(event)">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -111,6 +111,13 @@
                             </div>
                         </div>
                         <div class="card-actions">
+                            <button id="reset-run-btn" class="btn btn-ghost" onclick="resetRunIdAndButton()" title="New run (reset current view)" style="display: none; padding: 0.625rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M1 20v-6h6"></path>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                </svg>
+                            </button>
                             <button id="run-btn" class="btn btn-primary" onclick="runCommand()">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -223,10 +230,13 @@
     let selectedCommandName = null;
     let currentPage = 1;
     let sessionJobs = [];
+    let currentCommandRunId = 0; // Tracks unique runs within a command selection to avoid UI race conditions
     const runUrlTemplate = '{{ path('danilovl_web_command_run', {'id': 'ID_PLACEHOLDER'})|raw }}';
     const historyListUrlTemplate = '{{ path('danilovl_web_command_histories', {'command': 'ID_PLACEHOLDER'})|raw }}';
     const historyDetailUrlTemplate = '{{ path('danilovl_web_command_history_detail', {'id': 'ID_PLACEHOLDER'})|raw }}';
     const jobStatusUrlTemplate = '{{ path('danilovl_web_command_job_status', {'id': 'ID_PLACEHOLDER'})|raw }}';
+    const activeJobsUrl = '{{ path('danilovl_web_command_jobs_active')|raw }}';
+    const enabledDashboardLiveStatus = {{ enabledDashboardLiveStatus ? 'true' : 'false' }};
 
     let currentCommandAllowCustom = true;
 
@@ -275,12 +285,16 @@
             if (job.status === 'completed') statusBadgeClass = 'badge-status-completed';
             if (job.status === 'failed') statusBadgeClass = 'badge-status-failed';
 
+            const jobIdHtml = job.jobId 
+                ? `<div class="text-muted small">Job ID: ${job.jobId}</div>` 
+                : (job.status === 'queued' ? '<div class="text-muted small">Processing...</div>' : '');
+
             item.innerHTML = `
                 <div class="notification-item-top">
                     <span class="notification-item-name" title="${job.commandName}">${job.commandName}</span>
                     <span class="badge ${statusBadgeClass}">${job.status}</span>
                 </div>
-                <div class="text-muted small">Job ID: ${job.jobId || 'Pending'}</div>
+                ${jobIdHtml}
             `;
             list.appendChild(item);
         });
@@ -343,6 +357,7 @@
         timeoutInput.disabled = !currentCommandAllowCustom;
         timeoutInput.value = '';
 
+        currentCommandRunId++; // Increment to invalidate previous run callbacks for this UI instance
         resetRunButton();
         clearTerminal();
         addTerminalLine(`Command ready: ${name}`, 'info');
@@ -410,15 +425,32 @@
         outputArea.scrollTop = outputArea.scrollHeight;
     }
 
-    function resetRunButton() {
-        const runBtn = document.getElementById('run-btn');
-        runBtn.disabled = false;
-        runBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-            '<polygon points="5 3 19 12 5 21 5 3"></polygon>' +
-            '</svg> Run Command';
+    function resetRunIdAndButton() {
+        currentCommandRunId++;
+        resetRunButton();
+        addTerminalLine('UI reset for new run. Previous job continues in background.', 'info');
     }
 
-    function pollJobStatus(jobId, commandId) {
+    function resetRunButton() {
+        const runBtn = document.getElementById('run-btn');
+        if (runBtn) {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                '<polygon points="5 3 19 12 5 21 5 3"></polygon>' +
+                '</svg> Run Command';
+        }
+
+        const resetBtn = document.getElementById('reset-run-btn');
+        if (resetBtn) {
+            resetBtn.style.display = 'none';
+        }
+    }
+
+    function pollJobStatus(jobId, commandId, runId) {
+        if (!enabledDashboardLiveStatus) {
+            return;
+        }
+
         const pollInterval = setInterval(async () => {
             try {
                 const url = jobStatusUrlTemplate.replace('ID_PLACEHOLDER', jobId);
@@ -434,7 +466,7 @@
                 if (data.status === 'completed' || data.status === 'failed') {
                     clearInterval(pollInterval);
 
-                    if (selectedCommandId === commandId) {
+                    if (selectedCommandId === commandId && currentCommandRunId === runId) {
                         addTerminalLine(`Job ${jobId} finished with status: ${data.status}`, data.status === 'completed' ? 'success' : 'error');
                         loadHistories(1);
                         resetRunButton();
@@ -450,11 +482,34 @@
                     updateNotificationUI();
                 }
 
-                if (selectedCommandId === commandId) {
+                if (selectedCommandId === commandId && currentCommandRunId === runId) {
                     resetRunButton();
                 }
             }
         }, 2000);
+    }
+
+    async function loadActiveJobs() {
+        try {
+            const response = await fetch(activeJobsUrl);
+            const jobs = await handleResponse(response);
+
+            jobs.forEach(job => {
+                const jobEntry = {
+                    commandId: job.commandId,
+                    commandName: job.commandName,
+                    status: job.status,
+                    jobId: job.id
+                };
+                sessionJobs.push(jobEntry);
+                if (enabledDashboardLiveStatus) {
+                    pollJobStatus(job.id, job.commandId, null);
+                }
+            });
+            updateNotificationUI();
+        } catch (e) {
+            console.error('Failed to load active jobs', e);
+        }
     }
 
     async function runCommand() {
@@ -462,10 +517,18 @@
             return;
         }
 
+        const startTime = Date.now();
         const commandId = selectedCommandId;
         const commandName = selectedCommandName;
+        const runId = ++currentCommandRunId;
 
         const runBtn = document.getElementById('run-btn');
+        const resetBtn = document.getElementById('reset-run-btn');
+
+        if (resetBtn) {
+            resetBtn.style.display = 'inline-flex';
+        }
+
         runBtn.disabled = true;
         runBtn.innerHTML = '<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
             '<line x1="12" y1="2" x2="12" y2="6"></line>' +
@@ -500,6 +563,13 @@
                 .filter(val => val !== '');
         }
 
+        const ensureMinWait = async () => {
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 500) {
+                await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
+            }
+        };
+
         try {
             const url = runUrlTemplate.replace('ID_PLACEHOLDER', commandId);
             const response = await fetch(url, {
@@ -515,21 +585,29 @@
                 jobEntry.status = 'running';
                 updateNotificationUI();
 
-                if (selectedCommandId === commandId) {
-                    addTerminalLine(`Job queued. ID: ${result.jobId}`, 'info');
+                if (enabledDashboardLiveStatus) {
+                    if (selectedCommandId === commandId && currentCommandRunId === runId) {
+                        addTerminalLine(`Job queued. ID: ${result.jobId}`, 'info');
+                    }
+                    pollJobStatus(result.jobId, commandId, runId);
+                } else if (selectedCommandId === commandId && currentCommandRunId === runId) {
+                    addTerminalLine(`Job queued. ID: ${result.jobId}. Status updates disabled.`, 'info');
+                    await ensureMinWait();
+                    resetRunButton();
                 }
-                pollJobStatus(result.jobId, commandId);
             } else if (response.status === 200) {
                 jobEntry.status = 'completed';
                 updateNotificationUI();
-                if (selectedCommandId === commandId) {
+                if (selectedCommandId === commandId && currentCommandRunId === runId) {
+                    await ensureMinWait();
                     formatOutput(result.output, result.exitCode);
                     resetRunButton();
                 }
             } else {
                 jobEntry.status = 'failed';
                 updateNotificationUI();
-                if (selectedCommandId === commandId) {
+                if (selectedCommandId === commandId && currentCommandRunId === runId) {
+                    await ensureMinWait();
                     addTerminalLine('Error: ' + (result.error || 'Unknown error'), 'error');
                     resetRunButton();
                 }
@@ -537,13 +615,14 @@
         } catch (error) {
             jobEntry.status = 'failed';
             updateNotificationUI();
-            if (selectedCommandId === commandId) {
+            if (selectedCommandId === commandId && currentCommandRunId === runId) {
+                await ensureMinWait();
                 addTerminalLine('Fetch error: ' + error.message, 'error');
                 resetRunButton();
             }
         }
 
-        if (selectedCommandId === commandId) {
+        if (selectedCommandId === commandId && currentCommandRunId === runId) {
             loadHistories(1);
         }
     }
@@ -675,6 +754,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        if (enabledDashboardLiveStatus) {
+            loadActiveJobs();
+        }
         const historiesList = document.getElementById('histories-list');
         if (historiesList) {
             loadHistories(1);

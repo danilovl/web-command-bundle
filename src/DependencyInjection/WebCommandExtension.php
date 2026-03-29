@@ -3,43 +3,45 @@
 namespace Danilovl\WebCommandBundle\DependencyInjection;
 
 use Danilovl\WebCommandBundle\Admin\DashboardController;
-use Danilovl\WebCommandBundle\Dto\ConfigurationModel;
+use Danilovl\WebCommandBundle\Service\ConfigurationProvider;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\Config\FileLocator;
 
-/**
- * @phpstan-import-type ConfigurationArray from ConfigurationModel
- */
 class WebCommandExtension extends Extension
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration;
-        /** @var ConfigurationArray $config */
         $config = $this->processConfiguration($configuration, $configs);
-        $configurationModel = ConfigurationModel::fromArray($config);
 
         $fileLocator = new FileLocator(__DIR__ . '/../Resources/config');
         $loader = new YamlFileLoader($container, $fileLocator);
         $loader->load('services.yaml');
 
-        $consolePath = $configurationModel->consolePath;
+        $consolePath = $config['console_path'] ?? null;
         if ($consolePath === null) {
             /** @var string $projectDir */
             $projectDir = $container->getParameter('kernel.project_dir');
             $consolePath = $projectDir . DIRECTORY_SEPARATOR . 'bin/console';
         }
 
-        $container->setParameter('web_command.api_prefix', $configurationModel->apiPrefix);
-        $container->setParameter('web_command.console_path', $consolePath);
-        $container->setParameter('web_command.enable_async', $configurationModel->enableAsync);
-        $container->setParameter('web_command.default_timeout', $configurationModel->defaultTimeout);
-        $container->setParameter('web_command.default_time_limit', $configurationModel->defaultTimeLimit);
-        $container->setParameter('web_command.default_memory_limit', $configurationModel->defaultMemoryLimit);
+        $container->setParameter('web_command.api_prefix', $config['api_prefix']);
 
-        if (!$configurationModel->enabledDashboardController) {
+        $container->register(ConfigurationProvider::class, ConfigurationProvider::class)
+            ->setArguments([
+                $config['api_prefix'],
+                $consolePath,
+                $config['enable_async'],
+                $config['default_timeout'],
+                $config['default_time_limit'],
+                $config['default_memory_limit'],
+                $config['enabled_admin_dashboard'],
+                $config['enabled_dashboard_live_status']
+            ]);
+
+        if (!$config['enabled_admin_dashboard']) {
             $container->removeDefinition(DashboardController::class);
         }
     }

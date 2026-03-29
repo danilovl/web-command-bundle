@@ -7,7 +7,8 @@ use Danilovl\WebCommandBundle\Dto\RunCommandDto;
 use Danilovl\WebCommandBundle\Entity\Command;
 use Danilovl\WebCommandBundle\Service\{
     CommandRunner,
-    CommandService
+    CommandService,
+    ConfigurationProvider
 };
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,6 +36,22 @@ class CommandControllerTest extends TestCase
         $this->commandService = $this->createMock(CommandService::class);
     }
 
+    private function getConfigurationProvider(
+        bool $enableAsync = true,
+        int $defaultTimeout = 300
+    ): ConfigurationProvider {
+        return new ConfigurationProvider(
+            apiPrefix: '/api',
+            consolePath: 'bin/console',
+            enableAsync: $enableAsync,
+            defaultTimeout: $defaultTimeout,
+            defaultTimeLimit: 300,
+            defaultMemoryLimit: '512M',
+            enabledAdminDashboard: true,
+            enabledDashboardLiveStatus: true
+        );
+    }
+
     public function testRunAccessDenied(): void
     {
         $command = new Command;
@@ -52,8 +69,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $runCommandDto = new RunCommandDto([]);
@@ -78,8 +94,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $runCommandDto = new RunCommandDto(['--extra']);
@@ -108,8 +123,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $runCommandDto = new RunCommandDto(['--default']);
@@ -142,8 +156,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $runCommandDto = new RunCommandDto([]);
@@ -175,8 +188,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $runCommandDto = new RunCommandDto([]);
@@ -209,8 +221,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $runCommandDto = new RunCommandDto([], 120);
@@ -233,8 +244,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: false,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider(enableAsync: false)
         );
 
         $runCommandDto = new RunCommandDto([]);
@@ -267,8 +277,7 @@ class CommandControllerTest extends TestCase
             messageBus: $this->messageBus,
             commandRunner: $this->commandRunner,
             commandService: $this->commandService,
-            enableAsync: true,
-            defaultTimeout: 300
+            configurationProvider: $this->getConfigurationProvider()
         );
 
         $response = $controller->list();

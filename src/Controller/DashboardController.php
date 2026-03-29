@@ -2,7 +2,10 @@
 
 namespace Danilovl\WebCommandBundle\Controller;
 
-use Danilovl\WebCommandBundle\Service\CommandService;
+use Danilovl\WebCommandBundle\Service\{
+    CommandService,
+    ConfigurationProvider
+};
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -10,7 +13,8 @@ use Symfony\Component\Routing\Attribute\Route;
 class DashboardController extends AbstractController
 {
     public function __construct(
-        private readonly CommandService $commandService
+        private readonly CommandService $commandService,
+        private readonly ConfigurationProvider $configurationProvider
     ) {}
 
     #[Route(
@@ -23,7 +27,8 @@ class DashboardController extends AbstractController
         $commands = $this->commandService->getPublicCommands();
 
         return $this->render('@WebCommand/dashboard/index.html.twig', [
-            'commands' => $commands
+            'commands' => $commands,
+            'enabledDashboardLiveStatus' => $this->configurationProvider->enabledDashboardLiveStatus
         ]);
     }
 }

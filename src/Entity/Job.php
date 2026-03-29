@@ -146,6 +146,7 @@ class Job implements JsonSerializable
 
         return [
             'id' => $this->getId(),
+            'commandId' => $this->command->getId(),
             'commandName' => $this->getCommandName(),
             'status' => $this->status,
             'input' => $this->input,

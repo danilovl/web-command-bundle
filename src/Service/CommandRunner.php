@@ -8,7 +8,6 @@ use Danilovl\WebCommandBundle\Entity\{
 };
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Process\{
     Process,
     PhpExecutableFinder
@@ -18,12 +17,7 @@ use Throwable;
 readonly class CommandRunner
 {
     public function __construct(
-        #[Autowire('%web_command.console_path%')]
-        private string $consolePath,
-        #[Autowire('%web_command.default_memory_limit%')]
-        private ?string $defaultMemoryLimit,
-        #[Autowire('%web_command.default_time_limit%')]
-        private ?int $defaultTimeLimit,
+        private ConfigurationProvider $configurationProvider,
         private EntityManagerInterface $entityManager
     ) {}
 
@@ -39,7 +33,7 @@ readonly class CommandRunner
         ?callable $callback = null,
         bool $isAsync = false
     ): array {
-        $timeout ??= $this->defaultTimeLimit ?? 300;
+        $timeout ??= $this->configurationProvider->defaultTimeLimit ?? 300;
 
         $phpBinary = (new PhpExecutableFinder)->find(false);
         if ($phpBinary === false) {
@@ -50,12 +44,12 @@ readonly class CommandRunner
             $phpBinary
         ];
 
-        if ($this->defaultMemoryLimit !== null) {
+        if ($this->configurationProvider->defaultMemoryLimit !== null) {
             $commandArguments[] = '-d';
-            $commandArguments[] = 'memory_limit=' . $this->defaultMemoryLimit;
+            $commandArguments[] = 'memory_limit=' . $this->configurationProvider->defaultMemoryLimit;
         }
 
-        $commandArguments[] = $this->consolePath;
+        $commandArguments[] = $this->configurationProvider->consolePath;
         $commandArguments[] = $command->getCommand();
 
         foreach ($input as $item) {
