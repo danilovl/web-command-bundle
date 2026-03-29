@@ -11,7 +11,7 @@ use Doctrine\Common\Collections\Order;
 use Symfony\Component\HttpFoundation\{
     Request,
     JsonResponse
-    
+
 };
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
@@ -24,8 +24,8 @@ final readonly class HistoryController
         path: '/commands/{command}/histories',
         name: 'danilovl_web_command_histories',
         requirements: ['command' => Requirement::DIGITS],
-        methods: ['GET'])
-    ]
+        methods: ['GET']
+    )]
     public function list(Request $request, Command $command): JsonResponse
     {
         $page = $request->query->getInt('page', 1);
@@ -56,8 +56,8 @@ final readonly class HistoryController
         path: '/commands/histories/{id}',
         name: 'danilovl_web_command_history_detail',
         requirements: ['id' => Requirement::DIGITS],
-        methods: ['GET'])
-    ]
+        methods: ['GET']
+    )]
     public function get(History $history): JsonResponse
     {
         return new JsonResponse($history);

@@ -37,8 +37,8 @@ final readonly class CommandController
     #[Route(
         path: '',
         name: 'danilovl_web_commands',
-        methods: ['GET'])
-    ]
+        methods: ['GET']
+    )]
     public function list(): JsonResponse
     {
         $filteredCommands = $this->commandService->getPublicCommands();

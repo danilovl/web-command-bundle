@@ -36,6 +36,12 @@ class History implements JsonSerializable
     #[ORM\Column(name: 'output', type: Types::TEXT, nullable: true)]
     private ?string $output = null;
 
+    /**
+     * @var array<string, mixed>|null
+     */
+    #[ORM\Column(name: 'meta_info', type: Types::JSON, nullable: true)]
+    private ?array $metaInfo = null;
+
     #[ORM\Column(name: 'created_at')]
     private DateTimeImmutable $createdAt;
 
@@ -135,6 +141,24 @@ class History implements JsonSerializable
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getMetaInfo(): ?array
+    {
+        return $this->metaInfo;
+    }
+
+    /**
+     * @param array<string, mixed>|null $metaInfo
+     */
+    public function setMetaInfo(?array $metaInfo): self
+    {
+        $this->metaInfo = $metaInfo;
+
+        return $this;
+    }
+
     public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
@@ -160,6 +184,7 @@ class History implements JsonSerializable
             'exitCode' => $this->exitCode,
             'errorMessage' => $this->errorMessage,
             'output' => $this->output,
+            'metaInfo' => $this->metaInfo,
             'createdAt' => $this->createdAt->format('Y-m-d H:i:s')
         ];
     }

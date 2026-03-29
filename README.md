@@ -155,7 +155,7 @@ Each command is represented as an entity with several configuration options:
 - **Async**: Enable asynchronous execution via Symfony Messenger.
 - **Save History**: Whether to record execution history in the database.
 - **Save Output**: Save the command's stdout/stderr in the history record.
-- **Voter Class**: Specify a Symfony Voter class to restrict command execution based on custom logic.
+- **Voter Class**: Specify a Symfony Voter class or a security role (e.g., `ROLE_ADMIN`) to restrict command execution based on custom logic.
 - **Active**: Easily enable/disable command from being executed.
 - **Description**: Add notes about the command's purpose.
 
@@ -260,6 +260,7 @@ Retrieve a paginated list of histories for a specific command.
       "exitCode": 0,
       "errorMessage": null,
       "output": "Command output...",
+      "metaInfo": { "userId": 1, "userName": "admin" },
       "createdAt": "2024-03-28 10:00:00"
     }
   ],
@@ -284,6 +285,7 @@ Retrieve details and output of a specific history record.
   "exitCode": 0,
   "errorMessage": null,
   "output": "Command output...",
+  "metaInfo": { "userId": 1, "userName": "admin" },
   "createdAt": "2024-03-28 10:00:00"
 }
 ```
@@ -308,25 +310,106 @@ Retrieve the status of a specific job.
 }
 ```
 
-#### Database Schema example
+### Security
+
+#### Voter
+
+Each command can be protected by a Symfony Voter. Specify a **Voter Class** (or a role like `ROLE_ADMIN`) in the command configuration. The bundle will check permissions using `AuthorizationCheckerInterface::isGranted()`.
+
+#### URL Security
+
+To restrict access to the dashboards and API to specific roles, configure Symfony's `access_control` in `config/packages/security.yaml`:
+
+```yaml
+security:
+    access_control:
+        - { path: ^/api/web, roles: ROLE_ADMIN }
+        - { path: ^/danilovl/web-command/dashboard, roles: ROLE_ADMIN }
+```
+
+## Events
+
+The bundle dispatches events during the command execution lifecycle, allowing you to intercept and modify the process.
+
+### CommandStartEvent
+
+Dispatched before a command is executed.
+
+**Usage:**
+- Cancel command execution.
+- Modify command input.
+- Add or modify meta information.
+
+```php
+use Danilovl\WebCommandBundle\Event\CommandStartEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+
+#[AsEventListener]
+class CommandStartListener
+{
+    public function __invoke(CommandStartEvent $event): void
+    {
+        if ($someCondition) {
+            $event->setShouldContinue(false);
+            $event->setReason('Reason for cancellation');
+        }
+
+        $metaInfo = $event->getMetaInfo() ?? [];
+        $metaInfo['custom_key'] = 'custom_value';
+        
+        $event->setMetaInfo($metaInfo);
+    }
+}
+```
+
+### CommandEndEvent
+
+Dispatched after a command has finished execution (successfully or with an error).
+
+```php
+use Danilovl\WebCommandBundle\Event\CommandEndEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+
+#[AsEventListener]
+class CommandEndListener
+{
+    public function __invoke(CommandEndEvent $event): void
+    {
+        $exitCode = $event->getExitCode();
+        $output = $event->getOutput();
+        
+        // Do something with the result
+    }
+}
+```
+
+## Meta Information
+
+The `History` entity includes a `metaInfo` field (JSON). By default, if the Symfony Security component is available, it automatically stores:
+- `userId`: ID of the current user.
+- `userIdentifier`: Identifier of the current user.
+
+You can customize this data via `CommandStartEvent::setMetaInfo()`. If you set it to `null`, no meta information will be saved.
+
+## Database Schema Example
 
 ```sql
 CREATE TABLE danilovl_web_command
 (
-    id                    INT AUTO_INCREMENT NOT NULL,
-    name                  VARCHAR(255)       NOT NULL,
-    command               VARCHAR(255)       NOT NULL,
-    parameters            JSON               NOT NULL,
+    id                      INT AUTO_INCREMENT NOT NULL,
+    name                    VARCHAR(255)       NOT NULL,
+    command                 VARCHAR(255)       NOT NULL,
+    parameters              JSON               NOT NULL,
     allow_custom_parameters TINYINT            NOT NULL,
-    voter_class            VARCHAR(255) DEFAULT NULL,
-    active                TINYINT            NOT NULL,
-    async                 TINYINT            NOT NULL,
-    save_history           TINYINT(1)         NOT NULL DEFAULT 1,
-    save_output            TINYINT(1)         NOT NULL DEFAULT 0,
-    description           LONGTEXT     DEFAULT NULL,
-    created_at             DATETIME           NOT NULL,
-    updated_at             DATETIME     DEFAULT NULL,
-    
+    voter_class             VARCHAR(255)                DEFAULT NULL,
+    active                  TINYINT            NOT NULL,
+    async                   TINYINT            NOT NULL,
+    save_history            TINYINT(1)         NOT NULL DEFAULT 1,
+    save_output             TINYINT(1)         NOT NULL DEFAULT 0,
+    description             LONGTEXT                    DEFAULT NULL,
+    created_at              DATETIME           NOT NULL,
+    updated_at              DATETIME                    DEFAULT NULL,
+
     UNIQUE INDEX UNIQ_73DBE01B5E237E06 (name),
     PRIMARY KEY (id)
 ) DEFAULT CHARACTER SET utf8mb4;
@@ -353,6 +436,7 @@ CREATE TABLE danilovl_web_command_history
     exit_code     INT                NOT NULL,
     error_message LONGTEXT DEFAULT NULL,
     output        LONGTEXT DEFAULT NULL,
+    meta_info     JSON     DEFAULT NULL,
     created_at    DATETIME           NOT NULL,
 
     PRIMARY KEY (id),

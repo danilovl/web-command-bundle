@@ -65,7 +65,8 @@
             <div class="header-actions" {% if not enabledDashboardLiveStatus %}style="display: none;"{% endif %}>
                 <div class="notification-container">
                     <button class="notification-btn" onclick="toggleNotifications(event)">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                         </svg>
@@ -111,8 +112,10 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button id="reset-run-btn" class="btn btn-ghost" onclick="resetRunIdAndButton()" title="New run (reset current view)" style="display: none; padding: 0.625rem;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <button id="reset-run-btn" class="btn btn-ghost" onclick="resetRunIdAndButton()"
+                                    title="New run (reset current view)" style="display: none; padding: 0.625rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M23 4v6h-6"></path>
                                     <path d="M1 20v-6h6"></path>
                                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
@@ -209,12 +212,13 @@
                             <th>Async</th>
                             <th>Exit Code</th>
                             <th>Duration</th>
+                            <th>Meta Info</th>
                             <th>Created At</th>
                         </tr>
                         </thead>
                         <tbody id="histories-list">
                         <tr>
-                            <td colspan="6" class="text-center">Loading execution history...</td>
+                            <td colspan="7" class="text-center">Loading execution history...</td>
                         </tr>
                         </tbody>
                     </table>
@@ -285,8 +289,8 @@
             if (job.status === 'completed') statusBadgeClass = 'badge-status-completed';
             if (job.status === 'failed') statusBadgeClass = 'badge-status-failed';
 
-            const jobIdHtml = job.jobId 
-                ? `<div class="text-muted small">Job ID: ${job.jobId}</div>` 
+            const jobIdHtml = job.jobId
+                ? `<div class="text-muted small">Job ID: ${job.jobId}</div>`
                 : (job.status === 'queued' ? '<div class="text-muted small">Processing...</div>' : '');
 
             item.innerHTML = `
@@ -652,7 +656,7 @@
         if (!selectedCommandId) {
             const tbody = document.getElementById('histories-list');
             if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Select a command to view history</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">Select a command to view history</td></tr>';
             }
 
             return;
@@ -670,7 +674,7 @@
             tbody.innerHTML = '';
 
             if (data.histories.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No execution history found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No execution history found</td></tr>';
 
                 return;
             }
@@ -682,12 +686,20 @@
                 const duration = durationValue.toFixed(2) + 's';
                 const date = history.createdAt;
 
+                let metaInfoHtml = '<span class="text-muted small">None</span>';
+                if (history.metaInfo) {
+                    metaInfoHtml = Object.entries(history.metaInfo)
+                        .map(([key, value]) => `<div class="text-muted small"><strong>${key}:</strong> ${value}</div>`)
+                        .join('');
+                }
+
                 tr.innerHTML = `
                     <td class="font-mono"><code>${history.id}</code></td>
                     <td><strong>${history.command.name}</strong></td>
                     <td>${asyncBadge}</td>
                     <td><span class="badge ${history.exitCode === 0 ? 'badge-success' : 'badge-danger'}">${history.exitCode}</span></td>
                     <td>${duration}</td>
+                    <td>${metaInfoHtml}</td>
                     <td class="text-muted small">${date}</td>
                 `;
                 tr.onclick = () => showHistoryOutput(history.id);
@@ -699,7 +711,7 @@
             console.error('Failed to load histories', e);
             const tbody = document.getElementById('histories-list');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading history: ${e.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading history: ${e.message}</td></tr>`;
             }
         }
     }
@@ -730,6 +742,13 @@
             const outputArea = document.getElementById('output');
             outputArea.innerHTML = '';
             addTerminalLine(`Historical output for Run ${historyId}`, 'info');
+
+            if (history.metaInfo) {
+                const metaStr = Object.entries(history.metaInfo)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(', ');
+                addTerminalLine(`Meta Info: ${metaStr}`, 'info');
+            }
 
             if (history.output) {
                 history.output.split('\n').forEach(line => {

@@ -15,8 +15,8 @@ final readonly class JobController
     #[Route(
         path: '/jobs/active',
         name: 'danilovl_web_command_jobs_active',
-        methods: ['GET'])
-    ]
+        methods: ['GET']
+    )]
     public function active(): JsonResponse
     {
         $activeJobs = $this->jobRepository->getActiveJobs();
@@ -28,8 +28,8 @@ final readonly class JobController
         path: '/jobs/{id}/status',
         name: 'danilovl_web_command_job_status',
         requirements: ['id' => Requirement::DIGITS],
-        methods: ['GET'])
-    ]
+        methods: ['GET']
+    )]
     public function status(Job $job): JsonResponse
     {
         return new JsonResponse([
