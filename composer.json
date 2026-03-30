@@ -4,9 +4,6 @@
     "type": "symfony-bundle",
     "keywords": ["php","symfony","bundle","web-command","rest-api","web-interface","console-command"],
     "license": "MIT",
-    "support": {
-        "source": "https://bitbucket.org/danilovl/web-command-bundle"
-    },
     "authors": [
         {
             "name": "Vladimir Danilov"
