@@ -72,7 +72,7 @@ Create `config/packages/web_command.yaml`:
 
 ```yaml
 danilovl_web_command:
-    api_prefix: '/api/web'
+    api_prefix: '/danilovl/web-command/api'
     console_path: null
     enable_async: false
     default_timeout: null
@@ -108,7 +108,7 @@ framework:
 
 ### REST API
 
-The bundle provides a REST API to interact with commands. By default, the API is available under the `/api/web` prefix.
+The bundle provides a REST API to interact with commands. By default, the API is available under the `/danilovl/web-command/api` prefix.
 
 ### Admin Interface
 
@@ -173,7 +173,7 @@ The `Parameters` field must be a **JSON array of strings**. These are arguments 
 #### 1. List Commands
 Retrieve a list of all active commands that can be executed via the web interface.
 
-**Endpoint:** `GET /api/web/commands/`  
+**Endpoint:** `GET /danilovl/web-command/api/commands/`  
 **Route Name:** `danilovl_web_commands`
 
 **Response (200 OK):**
@@ -200,7 +200,7 @@ Retrieve a list of all active commands that can be executed via the web interfac
 #### 2. Run Command
 Execute a command.
 
-**Endpoint:** `POST /api/web/commands/{id}/run`  
+**Endpoint:** `POST /danilovl/web-command/api/commands/{id}/run`  
 **Route Name:** `danilovl_web_command_run`
 
 **Request Body:**
@@ -239,7 +239,7 @@ Execute a command.
 #### 3. List Histories
 Retrieve a paginated list of histories for a specific command.
 
-**Endpoint:** `GET /api/web/commands/{command}/histories`  
+**Endpoint:** `GET /danilovl/web-command/api/commands/{command}/histories`  
 **Route Name:** `danilovl_web_command_histories`
 
 **Path Parameters:**
@@ -272,7 +272,7 @@ Retrieve a paginated list of histories for a specific command.
 #### 4. Get History Details
 Retrieve details and output of a specific history record.
 
-**Endpoint:** `GET /api/web/commands/histories/{id}`  
+**Endpoint:** `GET /danilovl/web-command/api/commands/histories/{id}`  
 **Route Name:** `danilovl_web_command_history_detail`
 
 **Response (200 OK):**
@@ -300,7 +300,7 @@ Retrieve details and output of a specific history record.
 #### 5. Get Job Status
 Retrieve the status of a specific job.
 
-**Endpoint:** `GET /api/web/jobs/{id}/status`  
+**Endpoint:** `GET /danilovl/web-command/api/jobs/{id}/status`  
 **Route Name:** `danilovl_web_command_job_status`
 
 **Response (200 OK):**
