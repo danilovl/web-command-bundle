@@ -27,11 +27,21 @@
 
         <div class="sidebar-content">
             <div class="sidebar-label">Available Commands</div>
+            <div class="command-search-container">
+                <div class="search-wrapper">
+                    <input type="text" id="command-search" placeholder="Search commands..." class="command-search-input">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+            </div>
             <nav class="command-nav">
                 <ul id="command-list">
                     {% for command in commands %}
                         <li>
-                            <button onclick="selectCommand(this)"
+                            <button type="button"
                                     class="command-item"
                                     data-id="{{ command.id }}"
                                     data-name="{{ command.name|e('html_attr') }}"
@@ -64,7 +74,7 @@
             </div>
             <div class="header-actions" {% if not enabledDashboardLiveStatus %}style="display: none;"{% endif %}>
                 <div class="notification-container">
-                    <button class="notification-btn" onclick="toggleNotifications(event)">
+                    <button id="notification-btn" class="notification-btn" type="button">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -75,7 +85,7 @@
                     <div id="notification-dropdown" class="notification-dropdown">
                         <div class="notification-header">
                             <h3>Waiting List</h3>
-                            <button class="btn-clear" onclick="clearNotifications(event)">Clear</button>
+                            <button id="clear-notifications-btn" class="btn-clear" type="button">Clear</button>
                         </div>
                         <div id="notification-list" class="notification-list">
                             <div class="notification-empty">No active jobs</div>
@@ -112,7 +122,7 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button id="reset-run-btn" class="btn btn-ghost" onclick="resetRunIdAndButton()"
+                            <button id="reset-run-btn" class="btn btn-ghost" type="button"
                                     title="New run (reset current view)" style="display: none; padding: 0.625rem;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -121,7 +131,7 @@
                                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                                 </svg>
                             </button>
-                            <button id="run-btn" class="btn btn-primary" onclick="runCommand()">
+                            <button id="run-btn" class="btn btn-primary" type="button">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -141,7 +151,7 @@
                                 <!-- Dynamic parameters inputs -->
                             </div>
                             <div class="params-actions">
-                                <button id="add-param-btn" class="btn btn-ghost btn-sm" onclick="addParamInput()">
+                                <button id="add-param-btn" class="btn btn-ghost btn-sm" type="button">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -175,7 +185,14 @@
                         </div>
                         <div class="terminal-title">Output Console</div>
                         <div class="terminal-actions">
-                            <button onclick="clearTerminal()" title="Clear console">
+                            <button id="copy-terminal-btn" type="button" title="Copy console to clipboard">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                            <button id="clear-terminal-btn" type="button" title="Clear console">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M3 6h18"></path>
@@ -194,7 +211,7 @@
             <div class="card jobs-card">
                 <div class="card-header">
                     <h3>Recent execution history</h3>
-                    <button class="btn btn-ghost btn-sm" onclick="loadHistories(1)">
+                    <button id="refresh-history-btn" class="btn btn-ghost btn-sm" type="button">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="23 4 23 10 17 10"></polyline>
@@ -295,12 +312,33 @@
 
             item.innerHTML = `
                 <div class="notification-item-top">
-                    <span class="notification-item-name" title="${job.commandName}">${job.commandName}</span>
-                    <span class="badge ${statusBadgeClass}">${job.status}</span>
+                    <span class="notification-item-name" title="${escapeHtml(job.commandName)}">${escapeHtml(job.commandName)}</span>
+                    <span class="badge ${statusBadgeClass}">${escapeHtml(job.status)}</span>
                 </div>
                 ${jobIdHtml}
             `;
             list.appendChild(item);
+        });
+    }
+
+    function copyTerminal() {
+        const outputArea = document.getElementById('output');
+        if (!outputArea) return;
+
+        const text = outputArea.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copy-terminal-btn');
+            if (!btn) return;
+
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            btn.classList.add('text-success');
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('text-success');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
         });
     }
 
@@ -313,6 +351,13 @@
         const text = await response.text();
 
         throw new Error(`Invalid response format (Status: ${response.status}). ${text.substring(0, 200)}`);
+    }
+
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function selectCommand(btn) {
@@ -380,12 +425,16 @@
         input.value = value;
         input.placeholder = '--option or argument';
         input.disabled = !currentCommandAllowCustom;
-        input.onkeydown = (e) => {
+        input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                if (currentCommandAllowCustom) addParamInput();
+                if (e.ctrlKey || e.metaKey) {
+                    runCommand();
+                } else if (currentCommandAllowCustom) {
+                    addParamInput();
+                }
             }
-        };
+        });
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'btn-remove';
@@ -394,7 +443,7 @@
             '<line x1="18" y1="6" x2="6" y2="18"></line>' +
             '<line x1="6" y1="6" x2="18" y2="18"></line>' +
             '</svg>';
-        removeBtn.onclick = () => div.remove();
+        removeBtn.addEventListener('click', () => div.remove());
 
         div.appendChild(input);
         div.appendChild(removeBtn);
@@ -663,6 +712,10 @@
         }
 
         currentPage = page;
+        const tbody = document.getElementById('histories-list');
+        const table = tbody ? tbody.closest('table') : null;
+        if (table) table.classList.add('loading');
+
         try {
             let url = historyListUrlTemplate.replace('ID_PLACEHOLDER', selectedCommandId);
             url += `?page=${page}`;
@@ -670,17 +723,17 @@
             const response = await fetch(url);
             const data = await handleResponse(response);
 
-            const tbody = document.getElementById('histories-list');
-            tbody.innerHTML = '';
+            if (tbody) tbody.innerHTML = '';
 
             if (data.histories.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No execution history found</td></tr>';
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center">No execution history found</td></tr>';
 
                 return;
             }
 
             data.histories.forEach(history => {
                 const tr = document.createElement('tr');
+                tr.dataset.historyId = history.id;
                 const asyncBadge = `<span class="badge ${history.async ? 'badge-async' : 'badge-sync'}">${history.async ? 'Async' : 'Sync'}</span>`;
                 const durationValue = history.duration;
                 const duration = durationValue.toFixed(2) + 's';
@@ -689,52 +742,98 @@
                 let metaInfoHtml = '<span class="text-muted small">None</span>';
                 if (history.metaInfo) {
                     metaInfoHtml = Object.entries(history.metaInfo)
-                        .map(([key, value]) => `<div class="text-muted small"><strong>${key}:</strong> ${value}</div>`)
+                        .map(([key, value]) => `<div class="text-muted small"><strong>${escapeHtml(key)}:</strong> ${escapeHtml(String(value))}</div>`)
                         .join('');
                 }
 
                 tr.innerHTML = `
                     <td class="font-mono"><code>${history.id}</code></td>
-                    <td><strong>${history.command.name}</strong></td>
+                    <td><strong>${escapeHtml(history.command.name)}</strong></td>
                     <td>${asyncBadge}</td>
                     <td><span class="badge ${history.exitCode === 0 ? 'badge-success' : 'badge-danger'}">${history.exitCode}</span></td>
                     <td>${duration}</td>
                     <td>${metaInfoHtml}</td>
                     <td class="text-muted small">${date}</td>
                 `;
-                tr.onclick = () => showHistoryOutput(history.id);
-                tbody.appendChild(tr);
+                tr.addEventListener('click', () => showHistoryOutput(history.id));
+                if (tbody) tbody.appendChild(tr);
             });
 
             renderPagination(data.totalPages);
         } catch (e) {
             console.error('Failed to load histories', e);
-            const tbody = document.getElementById('histories-list');
             if (tbody) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading history: ${e.message}</td></tr>`;
             }
+        } finally {
+            if (table) table.classList.remove('loading');
         }
     }
 
     function renderPagination(totalPages) {
         const pagination = document.getElementById('pagination');
+        if (!pagination) {
+            return;
+        }
         pagination.innerHTML = '';
 
         if (totalPages <= 1) {
             return;
         }
 
-        for (let i = 1; i <= totalPages; i++) {
+        const range = 2;
+
+        const addPageButton = (i, text = null) => {
             const btn = document.createElement('button');
-            btn.innerText = i;
-            btn.className = i === currentPage ? 'active' : '';
-            btn.onclick = () => loadHistories(i);
+            btn.innerText = text || i;
+            btn.className = i === currentPage && !text ? 'active' : '';
+            btn.type = 'button';
+            btn.addEventListener('click', () => loadHistories(i));
             pagination.appendChild(btn);
+        };
+
+        const addEllipsis = () => {
+            const span = document.createElement('span');
+            span.innerText = '...';
+            span.className = 'pagination-ellipsis';
+            pagination.appendChild(span);
+        };
+
+        if (currentPage > 1) {
+            addPageButton(currentPage - 1, '«');
+        }
+
+        const pages = [];
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
+                pages.push(i);
+            }
+        }
+
+        let lastPage = 0;
+        pages.forEach(page => {
+            if (lastPage !== 0) {
+                if (page - lastPage === 2) {
+                    addPageButton(lastPage + 1);
+                } else if (page - lastPage > 2) {
+                    addEllipsis();
+                }
+            }
+            addPageButton(page);
+            lastPage = page;
+        });
+
+        if (currentPage < totalPages) {
+            addPageButton(currentPage + 1, '»');
         }
     }
 
     async function showHistoryOutput(historyId) {
         try {
+            document.querySelectorAll('#histories-list tr').forEach(r => r.classList.remove('active-history'));
+            const row = document.querySelector(`#histories-list tr[data-history-id="${historyId}"]`);
+            if (row) row.classList.add('active-history');
+
             const url = historyDetailUrlTemplate.replace('ID_PLACEHOLDER', historyId);
             const response = await fetch(url);
             const history = await handleResponse(response);
@@ -776,6 +875,82 @@
         if (enabledDashboardLiveStatus) {
             loadActiveJobs();
         }
+
+        const commandSearch = document.getElementById('command-search');
+        if (commandSearch) {
+            commandSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.command-item').forEach(btn => {
+                    const name = (btn.dataset.name || '').toLowerCase();
+                    const command = (btn.dataset.command || '').toLowerCase();
+                    const li = btn.closest('li');
+                    if (li) {
+                        li.style.display = (name.includes(term) || command.includes(term)) ? '' : 'none';
+                    }
+                });
+            });
+        }
+
+        const timeoutInput = document.getElementById('execution-timeout');
+        if (timeoutInput) {
+            timeoutInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    runCommand();
+                }
+            });
+        }
+
+        const commandList = document.getElementById('command-list');
+        if (commandList) {
+            commandList.addEventListener('click', (e) => {
+                const btn = e.target.closest('.command-item');
+                if (btn) {
+                    selectCommand(btn);
+                }
+            });
+        }
+
+        const notificationBtn = document.getElementById('notification-btn');
+        if (notificationBtn) {
+            notificationBtn.addEventListener('click', toggleNotifications);
+        }
+
+        const clearNotificationsBtn = document.getElementById('clear-notifications-btn');
+        if (clearNotificationsBtn) {
+            clearNotificationsBtn.addEventListener('click', clearNotifications);
+        }
+
+        const resetRunBtn = document.getElementById('reset-run-btn');
+        if (resetRunBtn) {
+            resetRunBtn.addEventListener('click', resetRunIdAndButton);
+        }
+
+        const runBtn = document.getElementById('run-btn');
+        if (runBtn) {
+            runBtn.addEventListener('click', runCommand);
+        }
+
+        const addParamBtn = document.getElementById('add-param-btn');
+        if (addParamBtn) {
+            addParamBtn.addEventListener('click', addParamInput);
+        }
+
+        const clearTerminalBtn = document.getElementById('clear-terminal-btn');
+        if (clearTerminalBtn) {
+            clearTerminalBtn.addEventListener('click', clearTerminal);
+        }
+
+        const copyTerminalBtn = document.getElementById('copy-terminal-btn');
+        if (copyTerminalBtn) {
+            copyTerminalBtn.addEventListener('click', copyTerminal);
+        }
+
+        const refreshHistoryBtn = document.getElementById('refresh-history-btn');
+        if (refreshHistoryBtn) {
+            refreshHistoryBtn.addEventListener('click', () => loadHistories(1));
+        }
+
         const historiesList = document.getElementById('histories-list');
         if (historiesList) {
             loadHistories(1);

@@ -82,6 +82,49 @@ body {
     color: #94a3b8;
 }
 
+.command-search-container {
+    padding: 0 1.5rem 1rem;
+}
+
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.875rem;
+    color: #64748b;
+    pointer-events: none;
+    transition: color 0.2s;
+}
+
+.command-search-input {
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+    color: white;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.command-search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.command-search-input:focus + .search-icon {
+    color: var(--primary);
+}
+
+.command-search-input::placeholder {
+    color: #64748b;
+}
+
 .command-nav ul {
     list-style: none;
     padding: 0;
@@ -717,6 +760,21 @@ body {
     background-color: var(--bg-main);
 }
 
+.jobs-table tr.active-history {
+    background-color: #f1f5f9;
+    border-left: 3px solid var(--primary);
+}
+
+.jobs-table tr.active-history td {
+    font-weight: 500;
+}
+
+.jobs-table.loading {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
 .font-mono {
     font-family: 'JetBrains Mono', monospace;
 }
@@ -761,6 +819,16 @@ body {
     border-color: var(--primary);
 }
 
+.pagination-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
 /* Animations */
 .spinner {
     animation: rotate 2s linear infinite;
@@ -777,7 +845,7 @@ body {
         width: 80px;
     }
 
-    .sidebar-label, .logo span, .command-item-main, .badge {
+    .sidebar-label, .logo span, .command-item-main, .badge, .command-search-container {
         display: none;
     }
 
