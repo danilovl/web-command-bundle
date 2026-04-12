@@ -499,7 +499,7 @@
         }
     }
 
-    function pollJobStatus(jobId, commandId, runId) {
+    function pollJobStatus(jobId, commandId, runId, commandName) {
         if (!enabledDashboardLiveStatus) {
             return;
         }
@@ -520,9 +520,27 @@
                     clearInterval(pollInterval);
 
                     if (selectedCommandId === commandId && currentCommandRunId === runId) {
-                        addTerminalLine(`Job ${jobId} finished with status: ${data.status}`, data.status === 'completed' ? 'success' : 'error');
-                        loadHistories(1);
+                        try {
+                            const historyUrl = historyListUrlTemplate.replace('ID_PLACEHOLDER', commandId) + '?page=1';
+                            const historyResponse = await fetch(historyUrl);
+                            const historyData = await handleResponse(historyResponse);
+
+                            if (historyData.histories && historyData.histories.length > 0) {
+                                const latest = historyData.histories[0];
+                                formatOutput(latest.output || latest.errorMessage, latest.exitCode);
+                            } else {
+                                addTerminalLine(`Job ${jobId} finished with status: ${data.status}`, data.status === 'completed' ? 'success' : 'error');
+                            }
+                        } catch (e) {
+                            addTerminalLine(`Job ${jobId} finished with status: ${data.status}`, data.status === 'completed' ? 'success' : 'error');
+                        }
                         resetRunButton();
+                    } else {
+                        addTerminalLine(`Job ${jobId} (${commandName}) finished with status: ${data.status}`, data.status === 'completed' ? 'success' : 'error');
+                    }
+
+                    if (selectedCommandId === commandId) {
+                        loadHistories(1);
                     }
                 }
             } catch (e) {
@@ -556,7 +574,7 @@
                 };
                 sessionJobs.push(jobEntry);
                 if (enabledDashboardLiveStatus) {
-                    pollJobStatus(job.id, job.commandId, null);
+                    pollJobStatus(job.id, job.commandId, null, job.commandName);
                 }
             });
             updateNotificationUI();
@@ -642,7 +660,7 @@
                     if (selectedCommandId === commandId && currentCommandRunId === runId) {
                         addTerminalLine(`Job queued. ID: ${result.jobId}`, 'info');
                     }
-                    pollJobStatus(result.jobId, commandId, runId);
+                    pollJobStatus(result.jobId, commandId, runId, commandName);
                 } else if (selectedCommandId === commandId && currentCommandRunId === runId) {
                     addTerminalLine(`Job queued. ID: ${result.jobId}. Status updates disabled.`, 'info');
                     await ensureMinWait();
