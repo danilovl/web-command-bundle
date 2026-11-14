@@ -28,7 +28,7 @@ class ConfigurationTest extends TestCase
         $this->assertNull($config['required_role']);
     }
 
-    #[DataProvider('invalidTimeoutProvider')]
+    #[DataProvider('provideTimeoutMustBePositiveCases')]
     public function testTimeoutMustBePositive(string $option, int $value): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -39,7 +39,7 @@ class ConfigurationTest extends TestCase
     /**
      * @return iterable<string, array{string, int}>
      */
-    public static function invalidTimeoutProvider(): iterable
+    public static function provideTimeoutMustBePositiveCases(): iterable
     {
         yield 'zero timeout' => ['default_timeout', 0];
         yield 'negative timeout' => ['default_timeout', -1];

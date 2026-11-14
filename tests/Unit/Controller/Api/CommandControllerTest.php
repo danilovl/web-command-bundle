@@ -373,7 +373,7 @@ class CommandControllerTest extends TestCase
             )
         );
 
-        $response = $controller->run($command, new RunCommandDto([], 1000));
+        $response = $controller->run($command, new RunCommandDto([], 1_000));
 
         $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
     }

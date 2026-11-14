@@ -25,7 +25,7 @@ class SameOriginRequestListenerTest extends TestCase
     ): RequestEvent {
         $server = [];
         foreach ($headers as $name => $value) {
-            $server['HTTP_' . strtoupper(str_replace('-', '_', $name))] = $value;
+            $server['HTTP_' . mb_strtoupper(str_replace('-', '_', $name))] = $value;
         }
 
         $request = Request::create(
@@ -41,7 +41,7 @@ class SameOriginRequestListenerTest extends TestCase
     /**
      * @param array<string, string> $headers
      */
-    #[DataProvider('blockedProvider')]
+    #[DataProvider('provideBlockedCases')]
     public function testBlocked(array $headers): void
     {
         $event = $this->createEvent(headers: $headers);
@@ -57,7 +57,7 @@ class SameOriginRequestListenerTest extends TestCase
     /**
      * @return iterable<string, array{array<string, string>}>
      */
-    public static function blockedProvider(): iterable
+    public static function provideBlockedCases(): iterable
     {
         yield 'cross-site fetch site' => [['Sec-Fetch-Site' => 'cross-site']];
         yield 'same-site fetch site' => [['Sec-Fetch-Site' => 'same-site']];
@@ -70,7 +70,7 @@ class SameOriginRequestListenerTest extends TestCase
     /**
      * @param array<string, string> $headers
      */
-    #[DataProvider('allowedProvider')]
+    #[DataProvider('provideAllowedCases')]
     public function testAllowed(array $headers): void
     {
         $event = $this->createEvent(headers: $headers);
@@ -83,7 +83,7 @@ class SameOriginRequestListenerTest extends TestCase
     /**
      * @return iterable<string, array{array<string, string>}>
      */
-    public static function allowedProvider(): iterable
+    public static function provideAllowedCases(): iterable
     {
         yield 'no headers' => [[]];
         yield 'same-origin fetch site' => [['Sec-Fetch-Site' => 'same-origin']];
