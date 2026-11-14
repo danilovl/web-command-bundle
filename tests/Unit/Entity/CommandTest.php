@@ -49,4 +49,9 @@ class CommandTest extends TestCase
         $this->assertEquals('Voter\Namespace', $json['voterClass']);
         $this->assertEquals(['--test'], $json['parameters']);
     }
+
+    public function testCustomParametersAreForbiddenByDefault(): void
+    {
+        $this->assertFalse((new Command)->isAllowCustomParameters());
+    }
 }

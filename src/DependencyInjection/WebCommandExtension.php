@@ -38,7 +38,8 @@ class WebCommandExtension extends Extension
                 $config['default_time_limit'],
                 $config['default_memory_limit'],
                 $config['enabled_admin_dashboard'],
-                $config['enabled_dashboard_live_status']
+                $config['enabled_dashboard_live_status'],
+                $config['required_role']
             ]);
 
         if (!$config['enabled_admin_dashboard']) {

@@ -32,7 +32,7 @@ class Command implements JsonSerializable
     private array $parameters = [];
 
     #[ORM\Column(name: 'allow_custom_parameters')]
-    private bool $allowCustomParameters = true;
+    private bool $allowCustomParameters = false;
 
     #[ORM\Column(name: 'voter_class', length: 255, nullable: true)]
     private ?string $voterClass = null;

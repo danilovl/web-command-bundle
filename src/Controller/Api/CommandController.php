@@ -54,7 +54,7 @@ final readonly class CommandController
     )]
     public function run(
         Command $command,
-        #[MapRequestPayload]
+        #[MapRequestPayload(acceptFormat: 'json')]
         RunCommandDto $runCommandDto
     ): JsonResponse {
         if (!$command->isActive()) {
@@ -85,7 +85,9 @@ final readonly class CommandController
 
         $input = $input !== [] ? $input : $command->getParameters();
 
-        $timeout = $runCommandDto->timeout ?? $this->configurationProvider->defaultTimeout ?? 300;
+        $maxTimeout = $this->configurationProvider->defaultTimeout ?? 300;
+        $requestedTimeout = $runCommandDto->timeout ?? $maxTimeout;
+        $timeout = max(1, min($requestedTimeout, $maxTimeout));
 
         $isAsyncCommand = $command->isAsync();
 
@@ -96,7 +98,7 @@ final readonly class CommandController
             );
         }
 
-        if ($isAsyncCommand && $this->configurationProvider->enableAsync) {
+        if ($isAsyncCommand) {
             $job = new Job($command, $input);
             $this->entityManager->persist($job);
             $this->entityManager->flush();

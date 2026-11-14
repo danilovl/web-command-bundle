@@ -11,9 +11,14 @@ use Danilovl\WebCommandBundle\Service\{
     ConfigurationProvider
 };
 use Doctrine\ORM\EntityManagerInterface;
+use ReflectionMethod;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\Attributes\{
+    AllowMockObjectsWithoutExpectations,
+    DataProvider
+};
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -287,5 +292,127 @@ class CommandControllerTest extends TestCase
         $this->assertCount(2, $data);
         $this->assertEquals('c1', $data[0]['name']);
         $this->assertEquals('c2', $data[1]['name']);
+    }
+
+    #[DataProvider('timeoutProvider')]
+    public function testRunTimeoutIsLimited(?int $requestedTimeout, int $expectedTimeout): void
+    {
+        $command = new Command;
+        $command->setId(1);
+        $command->setName('test');
+        $command->setCommand('actual:command');
+        $command->setAsync(false);
+
+        $this->commandService
+            ->method('isGranted')
+            ->willReturn(true);
+
+        $this->commandRunner
+            ->expects($this->once())
+            ->method('run')
+            ->with($command, [], $expectedTimeout)
+            ->willReturn(['output' => 'ok', 'exitCode' => 0, 'duration' => '1.0000']);
+
+        $controller = new CommandController(
+            entityManager: $this->entityManager,
+            messageBus: $this->messageBus,
+            commandRunner: $this->commandRunner,
+            commandService: $this->commandService,
+            configurationProvider: $this->getConfigurationProvider(defaultTimeout: 300)
+        );
+
+        $response = $controller->run($command, new RunCommandDto([], $requestedTimeout));
+
+        $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
+    }
+
+    /**
+     * @return iterable<string, array{int|null, int}>
+     */
+    public static function timeoutProvider(): iterable
+    {
+        yield 'not requested' => [null, 300];
+        yield 'within limit' => [120, 120];
+        yield 'above limit' => [100_000, 300];
+        yield 'zero' => [0, 1];
+        yield 'negative' => [-10, 1];
+    }
+
+    public function testRunTimeoutUsesFallbackWithoutConfiguration(): void
+    {
+        $command = new Command;
+        $command->setId(1);
+        $command->setName('test');
+        $command->setCommand('actual:command');
+        $command->setAsync(false);
+
+        $this->commandService
+            ->method('isGranted')
+            ->willReturn(true);
+
+        $this->commandRunner
+            ->expects($this->once())
+            ->method('run')
+            ->with($command, [], 300)
+            ->willReturn(['output' => 'ok', 'exitCode' => 0, 'duration' => '1.0000']);
+
+        $controller = new CommandController(
+            entityManager: $this->entityManager,
+            messageBus: $this->messageBus,
+            commandRunner: $this->commandRunner,
+            commandService: $this->commandService,
+            configurationProvider: new ConfigurationProvider(
+                apiPrefix: '/api',
+                consolePath: 'bin/console',
+                enableAsync: false,
+                defaultTimeout: null,
+                defaultTimeLimit: null,
+                defaultMemoryLimit: null,
+                enabledAdminDashboard: false,
+                enabledDashboardLiveStatus: true
+            )
+        );
+
+        $response = $controller->run($command, new RunCommandDto([], 1000));
+
+        $this->assertEquals(Response::HTTP_OK, $response->getStatusCode());
+    }
+
+    public function testRunCustomParametersAreForbiddenByDefault(): void
+    {
+        $command = new Command;
+        $command->setId(1);
+        $command->setName('test');
+        $command->setCommand('actual:command');
+        $command->setAsync(false);
+
+        $this->commandService
+            ->method('isGranted')
+            ->willReturn(true);
+
+        $this->commandRunner
+            ->expects($this->never())
+            ->method('run');
+
+        $controller = new CommandController(
+            entityManager: $this->entityManager,
+            messageBus: $this->messageBus,
+            commandRunner: $this->commandRunner,
+            commandService: $this->commandService,
+            configurationProvider: $this->getConfigurationProvider()
+        );
+
+        $response = $controller->run($command, new RunCommandDto(['--env=prod']));
+
+        $this->assertEquals(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+    }
+
+    public function testRunAcceptsOnlyJsonPayload(): void
+    {
+        $parameter = new ReflectionMethod(CommandController::class, 'run')->getParameters()[1];
+        $attributes = $parameter->getAttributes(MapRequestPayload::class);
+
+        $this->assertCount(1, $attributes);
+        $this->assertSame('json', $attributes[0]->newInstance()->acceptFormat);
     }
 }

@@ -36,13 +36,14 @@ final readonly class AsyncCommandHandler
             $command = $job->getCommand();
             $input = $job->getInput();
 
-            $this->commandRunner->run(
+            $result = $this->commandRunner->run(
                 command: $command,
                 input: $input,
                 isAsync: true
             );
 
-            $job->setStatus('completed');
+            $status = $result['exitCode'] === 0 ? 'completed' : 'failed';
+            $job->setStatus($status);
         } catch (Throwable) {
             $job->setStatus('failed');
         }

@@ -80,16 +80,25 @@ danilovl_web_command:
     default_memory_limit: null
     enabled_admin_dashboard: false
     enabled_dashboard_live_status: true
+    required_role: null
 ```
 
 *Note:*
 - `console_path`: if `null` (default), it's `%kernel.project_dir%/bin/console`. If set, it's used as is (absolute path).
 - `default_timeout`, `default_time_limit` and `default_memory_limit` are `null` by default.
-- `default_timeout`: default timeout (seconds) for synchronous command execution via API.
-- `default_time_limit`: default timeout (seconds) for asynchronous command execution.
+- `default_timeout`: default timeout (seconds) for synchronous command execution via API. It is also the maximum timeout a client can request. Minimum value is `1`, `300` is used when `null`.
+- `default_time_limit`: default timeout (seconds) for asynchronous command execution. Minimum value is `1`, `300` is used when `null`.
 - `default_memory_limit`: applied via `-d memory_limit=...` during process execution.
 - `enabled_admin_dashboard`: enable EasyAdmin dashboard integration.
 - `enabled_dashboard_live_status`: enable/disable interval requests to check job status on the web dashboard.
+- `required_role`: role required for all bundle routes (dashboard and API), e.g. `ROLE_ADMIN`. Requires `symfony/security-bundle`. `null` disables the check.
+
+*Security:*
+- `symfony/security-bundle` is optional. Without it voters and `required_role` are not used and history meta info contains `anonymous` user.
+- `POST` requests to the bundle API accept only `application/json` and are rejected with `403` when `Origin` or `Sec-Fetch-Site` headers point to another site.
+- Behind a reverse proxy configure `framework.trusted_proxies` and `framework.trusted_headers`, otherwise the request scheme or host may not match the `Origin` header and requests from the dashboard will be rejected.
+- `allowCustomParameters` is `false` by default for new commands.
+- Stored output and error message are limited to the last 16 000 characters.
 
 ### Messenger Configuration
 

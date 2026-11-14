@@ -23,11 +23,13 @@ use Throwable;
 
 readonly class CommandRunner
 {
+    private const int MAX_STORED_OUTPUT_CHARACTERS = 16_000;
+
     public function __construct(
         private ConfigurationProvider $configurationProvider,
         private EntityManagerInterface $entityManager,
         private EventDispatcherInterface $eventDispatcher,
-        private Security $security
+        private ?Security $security = null
     ) {}
 
     /**
@@ -73,7 +75,8 @@ readonly class CommandRunner
             ];
         }
 
-        $timeout ??= $this->configurationProvider->defaultTimeLimit ?? 300;
+        $defaultTimeout = $isAsync ? $this->configurationProvider->defaultTimeLimit : $this->configurationProvider->defaultTimeout;
+        $timeout ??= $defaultTimeout ?? 300;
 
         $phpBinary = (new PhpExecutableFinder)->find(false);
         if ($phpBinary === false) {
@@ -191,12 +194,15 @@ readonly class CommandRunner
         );
         $history->setMetaInfo($metaInfo);
 
+        $storedOutput = mb_substr($output, -self::MAX_STORED_OUTPUT_CHARACTERS);
+
         if ($command->isSaveOutput()) {
-            $history->setOutput($output);
+            $history->setOutput($storedOutput);
         }
 
         if ($exitCode !== 0) {
-            $history->setErrorMessage($output);
+            $errorMessage = $command->isSaveOutput() ? $storedOutput : sprintf('Command failed with exit code %d.', $exitCode);
+            $history->setErrorMessage($errorMessage);
         }
 
         $this->entityManager->persist($history);
@@ -208,7 +214,7 @@ readonly class CommandRunner
      */
     private function getMetaInfo(): array
     {
-        $user = $this->security->getUser();
+        $user = $this->security?->getUser();
         if (!$user instanceof UserInterface) {
             return ['userIdentifier' => 'anonymous'];
         }

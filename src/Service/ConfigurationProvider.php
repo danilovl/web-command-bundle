@@ -12,6 +12,7 @@ final readonly class ConfigurationProvider
         public ?int $defaultTimeLimit,
         public ?string $defaultMemoryLimit,
         public bool $enabledAdminDashboard,
-        public bool $enabledDashboardLiveStatus
+        public bool $enabledDashboardLiveStatus,
+        public ?string $requiredRole = null
     ) {}
 }

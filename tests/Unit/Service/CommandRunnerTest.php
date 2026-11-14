@@ -17,6 +17,8 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Throwable;
 use RuntimeException;
 
@@ -224,5 +226,165 @@ class CommandRunnerTest extends TestCase
             ->method('flush');
 
         $commandRunner->run($command);
+    }
+
+    private function createFixtureRunner(
+        ?int $defaultTimeout = 300,
+        ?int $defaultTimeLimit = 300,
+        bool $withSecurity = true
+    ): CommandRunner {
+        $configurationProvider = new ConfigurationProvider(
+            apiPrefix: '/api',
+            consolePath: dirname(__DIR__, 2) . '/Fixtures/console.php',
+            enableAsync: true,
+            defaultTimeout: $defaultTimeout,
+            defaultTimeLimit: $defaultTimeLimit,
+            defaultMemoryLimit: null,
+            enabledAdminDashboard: true,
+            enabledDashboardLiveStatus: true
+        );
+
+        return new CommandRunner(
+            $configurationProvider,
+            $this->entityManager,
+            $this->eventDispatcher,
+            $withSecurity ? $this->security : null
+        );
+    }
+
+    public function testRunWithoutSecuritySavesAnonymousMetaInfo(): void
+    {
+        $commandRunner = $this->createFixtureRunner(withSecurity: false);
+
+        $command = new Command;
+        $command->setCommand('ok');
+        $command->setSaveHistory(true);
+
+        $histories = [];
+        $this->entityManager
+            ->expects($this->once())
+            ->method('persist')
+            ->willReturnCallback(static function (History $history) use (&$histories): void {
+                $histories[] = $history;
+            });
+
+        $result = $commandRunner->run($command);
+
+        $this->assertSame(0, $result['exitCode']);
+        $this->assertSame('ok', $result['output']);
+        $this->assertCount(1, $histories);
+        $this->assertSame(['userIdentifier' => 'anonymous'], $histories[0]->getMetaInfo());
+    }
+
+    public function testRunWithSecuritySavesUserMetaInfo(): void
+    {
+        $commandRunner = $this->createFixtureRunner();
+
+        $this->security
+            ->method('getUser')
+            ->willReturn(new InMemoryUser('admin', null));
+
+        $command = new Command;
+        $command->setCommand('ok');
+        $command->setSaveHistory(true);
+
+        $histories = [];
+        $this->entityManager
+            ->method('persist')
+            ->willReturnCallback(static function (History $history) use (&$histories): void {
+                $histories[] = $history;
+            });
+
+        $commandRunner->run($command);
+
+        $this->assertCount(1, $histories);
+        $this->assertSame(['userIdentifier' => 'admin'], $histories[0]->getMetaInfo());
+    }
+
+    public function testRunTruncatesStoredOutputAndErrorMessage(): void
+    {
+        $commandRunner = $this->createFixtureRunner();
+
+        $command = new Command;
+        $command->setCommand('long-output');
+        $command->setSaveHistory(true);
+        $command->setSaveOutput(true);
+
+        $histories = [];
+        $this->entityManager
+            ->method('persist')
+            ->willReturnCallback(static function (History $history) use (&$histories): void {
+                $histories[] = $history;
+            });
+
+        $result = $commandRunner->run($command);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertSame(20_003, mb_strlen($result['output']));
+
+        $this->assertCount(1, $histories);
+        $output = (string) $histories[0]->getOutput();
+        $this->assertSame(16_000, mb_strlen($output));
+        $this->assertStringEndsWith('END', $output);
+        $this->assertSame($output, $histories[0]->getErrorMessage());
+    }
+
+    public function testRunDoesNotStoreOutputInErrorMessageWhenSaveOutputDisabled(): void
+    {
+        $commandRunner = $this->createFixtureRunner();
+
+        $command = new Command;
+        $command->setCommand('long-output');
+        $command->setSaveHistory(true);
+        $command->setSaveOutput(false);
+
+        $histories = [];
+        $this->entityManager
+            ->method('persist')
+            ->willReturnCallback(static function (History $history) use (&$histories): void {
+                $histories[] = $history;
+            });
+
+        $commandRunner->run($command);
+
+        $this->assertCount(1, $histories);
+        $this->assertNull($histories[0]->getOutput());
+        $this->assertSame('Command failed with exit code 1.', $histories[0]->getErrorMessage());
+    }
+
+    public function testSyncRunUsesDefaultTimeout(): void
+    {
+        $commandRunner = $this->createFixtureRunner(defaultTimeout: 1, defaultTimeLimit: 100);
+
+        $command = new Command;
+        $command->setCommand('sleep');
+
+        $this->expectException(ProcessTimedOutException::class);
+
+        $commandRunner->run($command);
+    }
+
+    public function testAsyncRunUsesDefaultTimeLimit(): void
+    {
+        $commandRunner = $this->createFixtureRunner(defaultTimeout: 100, defaultTimeLimit: 1);
+
+        $command = new Command;
+        $command->setCommand('sleep');
+
+        $this->expectException(ProcessTimedOutException::class);
+
+        $commandRunner->run($command, isAsync: true);
+    }
+
+    public function testExplicitTimeoutOverridesDefaults(): void
+    {
+        $commandRunner = $this->createFixtureRunner(defaultTimeout: 100, defaultTimeLimit: 100);
+
+        $command = new Command;
+        $command->setCommand('sleep');
+
+        $this->expectException(ProcessTimedOutException::class);
+
+        $commandRunner->run($command, timeout: 1);
     }
 }

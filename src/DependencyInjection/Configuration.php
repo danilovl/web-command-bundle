@@ -26,9 +26,11 @@ class Configuration implements ConfigurationInterface
                     ->defaultFalse()
                 ->end()
                 ->integerNode('default_timeout')
+                    ->min(1)
                     ->defaultNull()
                 ->end()
                 ->integerNode('default_time_limit')
+                    ->min(1)
                     ->defaultNull()
                 ->end()
                 ->scalarNode('default_memory_limit')
@@ -39,6 +41,9 @@ class Configuration implements ConfigurationInterface
                 ->end()
                 ->booleanNode('enabled_dashboard_live_status')
                     ->defaultTrue()
+                ->end()
+                ->scalarNode('required_role')
+                    ->defaultNull()
                 ->end()
             ->end();
 

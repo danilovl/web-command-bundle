@@ -464,15 +464,18 @@
         const line = document.createElement('div');
         line.className = 'terminal-line ' + type;
 
-        if (type === 'error') {
-            line.innerHTML = `<span class="prompt">$</span> <span class="text-danger">${text}</span>`;
-        } else if (type === 'success') {
-            line.innerHTML = `<span class="prompt">$</span> <span class="text-success">${text}</span>`;
-        } else if (type === 'info') {
-            line.innerHTML = `<span class="prompt">$</span> <span class="text-info">${text}</span>`;
-        } else {
-            line.innerHTML = `<span class="prompt">$</span> ${text}`;
+        const prompt = document.createElement('span');
+        prompt.className = 'prompt';
+        prompt.textContent = '$';
+
+        const body = document.createElement('span');
+        const typeClasses = {error: 'text-danger', success: 'text-success', info: 'text-info'};
+        if (typeClasses[type]) {
+            body.className = typeClasses[type];
         }
+        body.textContent = text;
+
+        line.append(prompt, ' ', body);
 
         outputArea.appendChild(line);
         outputArea.scrollTop = outputArea.scrollHeight;
@@ -781,7 +784,7 @@
         } catch (e) {
             console.error('Failed to load histories', e);
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading history: ${e.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error loading history: ${escapeHtml(e.message)}</td></tr>`;
             }
         } finally {
             if (table) table.classList.remove('loading');

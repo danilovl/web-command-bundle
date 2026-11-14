@@ -7,18 +7,22 @@ use Danilovl\WebCommandBundle\Entity\{
     History
 };
 use Danilovl\WebCommandBundle\Repository\HistoryRepository;
+use Danilovl\WebCommandBundle\Service\CommandService;
 use Doctrine\Common\Collections\Order;
 use Symfony\Component\HttpFoundation\{
     Request,
+    Response,
     JsonResponse
-
 };
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 
 final readonly class HistoryController
 {
-    public function __construct(private HistoryRepository $historyRepository) {}
+    public function __construct(
+        private HistoryRepository $historyRepository,
+        private CommandService $commandService
+    ) {}
 
     #[Route(
         path: '/commands/{command}/histories',
@@ -28,6 +32,10 @@ final readonly class HistoryController
     )]
     public function list(Request $request, Command $command): JsonResponse
     {
+        if (!$this->commandService->isGranted($command)) {
+            return $this->createAccessDeniedResponse();
+        }
+
         $page = $request->query->getInt('page', 1);
 
         $criteria = ['command' => $command];
@@ -60,6 +68,18 @@ final readonly class HistoryController
     )]
     public function get(History $history): JsonResponse
     {
+        if (!$this->commandService->isGranted($history->getCommand())) {
+            return $this->createAccessDeniedResponse();
+        }
+
         return new JsonResponse($history);
+    }
+
+    private function createAccessDeniedResponse(): JsonResponse
+    {
+        return new JsonResponse(
+            data: ['error' => 'Access denied'],
+            status: Response::HTTP_FORBIDDEN
+        );
     }
 }
